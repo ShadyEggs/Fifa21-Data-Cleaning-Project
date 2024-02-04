@@ -1,0 +1,184 @@
+---
+title: "Fifa 2021 Data Cleaning and Transformation"
+author: "Alfred Rico"
+date: "January 18, 2024"
+output: 
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+##### 
+Now more than ever, data collection is a well established commodity despite often being of poor quality and inconsitent in its obtaining process. The FIFA Data Ecosystem is no exception however, several data sources, data processors and distribution layers help to provide needed consistency and quality for all relevant stakeholders. The FIFA Arab Cup 2021™ and the FIFA Club World Cup™ in 2019 and 2021 are some of several FIFA tournaments where data collected by FIFA's Football Data Ecosystem has been developed and tested through recent years. We will be looking at a fairly messy data sample from 2021 and attempt to clean it for future use. Dataset source:https://www.kaggle.com/datasets/yagunnersya/fifa-21-messy-raw-dataset-for-cleaning-exploring?select=fifa21_raw_data.csv%E2%80%8B 
+Lets get started.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+```
+### Convert height and weight columns to consistent numerics
+
+##### 
+Of the 80 columns of data in this sample, we will first look at the Height of the listed player data and off the bat there is inconsistency as the majority of data collected for this statistic is in centimeters however, a few rows have entries in feet and inches. We observe these inconsitencies specifically in rows 820:875 and can probably assume there are more. Not good.
+```{r}
+load(file="Fifa21_raw_data.RData")
+dput(fifa21_raw_data$Height[820:875])
+```
+* First, separate the Height column into two new columns Feet and Inches
+
+* Second, convert Feet and Inches columns to numeric
+
+* Third, create a Height(cm) column that sends through cm variables from Height but converts any Feet(') or Inches(") variables to cm  
+```{r}
+a <- data.frame(Height = c("174cm", "183cm", "180cm", "181cm", "186cm", "178cm", "5'11\"", 
+  "6'4\"", "6'1\"", "6'0\"", "6'1\"", "5'11\"", "6'2\"", "6'0\"", 
+  "6'3\"", "6'0\"", "184cm", "5'10\"", "5'9\"", "5'11\"", "5'6\""
+))
+a |>
+  separate(Height, c("Feet", "Inches"), sep = "'", remove = FALSE) |>
+  mutate(across(Feet:Inches, ~parse_number(.x))) |>
+  mutate("Height(cm)" = if_else(is.na(Inches), Feet, 
+                           round((Feet+ Inches/12)*30.48)))
+```
+### Separating joined column into year, month, and day
+```{r}
+data.frame(fifa21_raw_data$Joined[1:20])
+```
+
+##### 
+We look at the Joined column in this data set and see that it is in a format that is difficult to work with. Fortunately, we can split this column into three respective columns with Year, Month, and Day in an appropriate format that is much easier to analyze. Currently we have inputs in the format of Jul 1, 2004. Not the easiest formatting. Let's change this using:
+
+fifa21_raw_data$Joined[1:20] |>
+
+  as.Date(vec, format = "%b %d, %Y") |>
+  
+  as.character() |>
+  
+  strsplit("-") |>
+  
+  do.call(rbind, args=_)
+```{r}
+fifa21_raw_data$Joined[1:20] |>
+  as.Date(vec, format = "%b %d, %Y") |>
+  as.character() |>
+  strsplit("-") |>
+  do.call(rbind, args=_)
+```
+##### 
+Fantastic! Let's go ahead and rename the columns as well while we're at it:
+
+fifa21_raw_data$Joined[1:20] |>
+
+  as.Date(vec, format = "%b %d, %Y") |>
+  
+  as.character() |>
+  
+  strsplit("-") |>
+  
+  do.call(rbind, args=_) |>
+  
+  as.data.frame() |>
+  
+  setNames(c("Year","Month", "Day"))
+```{r}
+fifa21_raw_data$Joined[1:20] |>
+  as.Date(vec, format = "%b %d, %Y") |>
+  as.character() |>
+  strsplit("-") |>
+  do.call(rbind, args=_) |>
+  as.data.frame() |>
+  setNames(c("Year","Month", "Day"))
+```
+### Transform Value and wage columns
+```{r}
+dput(fifa21_raw_data$Value[1:20])
+dput(fifa21_raw_data$Wage[1:20])
+```
+##### 
+In these columns we can see that instead of integers, we have character types. Creating a data frame for all three, we are able to adjust these strings into integers in one fell swoop after defining values to "K" and "M". We can use this information to get an idea of how many players are highly valued but still underpaid (low wage). Via scatterplot, we can see players who are paid the same yearly wage but are valued differently:
+
+df <- structure(list(Wage = c("�\u0082�560K", "�\u0082�220K", 
+"�\u0082�125K", "�\u0082�370K", "�\u0082�270K", "�\u0082�240K", 
+"�\u0082�160K", "�\u0082�160K", "�\u0082�250K", "�\u0082�250K", 
+"�\u0082�210K", "�\u0082�260K", "�\u0082�310K", "�\u0082�250K", 
+"�\u0082�125K", "�\u0082�350K", "�\u0082�300K", "�\u0082�300K", 
+"�\u0082�190K", "�\u0082�145K"), Value = c("�\u0082�67.5M", 
+"�\u0082�46M", "�\u0082�75M", "�\u0082�87M", "�\u0082�90M", 
+"�\u0082�80M", "�\u0082�105.5M", "�\u0082�62.5M", 
+"�\u0082�78M", "�\u0082�78M", "�\u0082�75.5M", "�\u0082�69.5M", 
+"�\u0082�59.5M", "�\u0082�56M", "�\u0082�29M", "�\u0082�53M", 
+"�\u0082�24.5M", "�\u0082�53M", "�\u0082�51M", "�\u0082�65M"
+)), class = "data.frame", row.names = c(NA, 
+-20L))
+
+dct <- c(K= 'e3', M = 'e6')
+
+map_df(df, ~as.numeric(str_replace_all(str_remove(.x, "\\D+"), dct)))
+
+ggplot(df,aes(x=Wage,y=Value))+geom_point()
+```{r}
+df <- structure(list(Wage = c("�\u0082�560K", "�\u0082�220K", 
+"�\u0082�125K", "�\u0082�370K", "�\u0082�270K", "�\u0082�240K", 
+"�\u0082�160K", "�\u0082�160K", "�\u0082�250K", "�\u0082�250K", 
+"�\u0082�210K", "�\u0082�260K", "�\u0082�310K", "�\u0082�250K", 
+"�\u0082�125K", "�\u0082�350K", "�\u0082�300K", "�\u0082�300K", 
+"�\u0082�190K", "�\u0082�145K"), Value = c("�\u0082�67.5M", 
+"�\u0082�46M", "�\u0082�75M", "�\u0082�87M", "�\u0082�90M", 
+"�\u0082�80M", "�\u0082�105.5M", "�\u0082�62.5M", 
+"�\u0082�78M", "�\u0082�78M", "�\u0082�75.5M", "�\u0082�69.5M", 
+"�\u0082�59.5M", "�\u0082�56M", "�\u0082�29M", "�\u0082�53M", 
+"�\u0082�24.5M", "�\u0082�53M", "�\u0082�51M", "�\u0082�65M"
+)), class = "data.frame", row.names = c(NA, 
+-20L))
+
+dct <- c(K= 'e3', M = 'e6')
+map_df(df, ~as.numeric(str_replace_all(str_remove(.x, "\\D+"), dct)))
+
+ggplot(df,aes(x=Wage,y=Value))+geom_point()
+```
+
+### Removing newline character strings from a column
+
+##### 
+Here we see that, although not shown on the dataframe column itself, there are hidden newline characters in the Hits column eg: n372, n344, n86, n163, n273, n182, n646, n79, n164, n170, n170, n93, n131, n89, n90, n169, n187, n103, n169, n317 We will use sapply to remove these from the elements of the column without compromising the entire dataframe:
+
+fifa21_raw_data\$Hits <- sapply(fifa21_raw_data$Hits, function(x) {gsub("[\r\n]", "", x)})
+```{r}
+fifa21_raw_data$Hits <- sapply(fifa21_raw_data$Hits, function(x) {gsub("[\r\n]", "", x)})
+
+dput(fifa21_raw_data$Hits[1:20])
+```
+### Removing non-alphanumeric characters
+#### 
+dput(fifa21_raw_data$'W/F'[1:20])
+```{r}
+dput(fifa21_raw_data$`W/F`[1:20])
+```
+c("4 ★", "4 ★", "3 ★", "5 ★", "5 ★", "4 ★", "4 ★", 
+"3 ★", "3 ★", "4 ★", "3 ★", "4 ★", "3 ★", "3 ★", 
+"4 ★", "4 ★", "3 ★", "4 ★", "3 ★", "4 ★")
+
+#### 
+We have a couple columns that have ★ symbols, particularly the W/F column. Unfortunately, although the chunk output displays this, rmarkdown will not show the same output. I will leave the chunk and reproduce the output via text as I have not found a solution to this. We will use a gsub calling to address this. 
+
+#### 
+gsub(" ★"," ", fifa21_raw_data$'W/F'[1:20])
+```{r}
+gsub(" ★"," ", fifa21_raw_data$`W/F`[1:20])
+
+```
+####
+[1] "4 " "4 " "3 " "5 " "5 " "4 " "4 " "3 " "3 " "4 " "3 "
+
+[12] "4 " "3 " "3 " "4 " "4 " "3 " "4 " "3 " "4 "
+
+#### 
+We may use this simple gsub call to adjust the other columns containing the non-alphanumeric symbol.
