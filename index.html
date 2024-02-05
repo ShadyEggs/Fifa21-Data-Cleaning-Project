@@ -1537,6 +1537,11 @@ Inches</p></li>
 <li><p>Third, create a Height(cm) column that sends through cm variables
 from Height but converts any Feet(’) or Inches(“) variables to
 cm</p></li>
+<p>a <- data.frame(Height = c("174cm", "183cm", "180cm", "181cm", "186cm", "178cm", "5'11\"", "6'4\"", "6'1\"", "6'0\"", "6'1\"", "5'11\"", "6'2\"", "6'0\"", "6'3\"", "6'0\"", "184cm", "5'10\"", "5'9\"", "5'11\"", "5'6\""))</p>
+<p>a |></p>
+<p>separate(Height, c("Feet", "Inches"), sep = "'", remove = FALSE) |></p>
+<p>mutate(across(Feet:Inches, ~parse_number(.x))) |></p>
+<p>mutate("Height(cm)" = if_else(is.na(Inches), Feet, round((Feet+ Inches/12)*30.48)))</p>
 </ul>
 <pre><code>##    Height Feet Inches Height(cm)
 ## 1   174cm  174     NA        174
